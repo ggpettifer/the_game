@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h1>The Game</h1>
+<div class="setup">
+    <form id="set_limit_form">
+        <input type="number" name="limit" placeholder="Set Limit (seconds)" required>
+        <button type="submit">Set Limit</button>
+    </form>
+    <div>
+        <button id="start_button">Start</button>
+    </div>
+    <div>
+        <button id="reset_button">Reset</button>
+    </div>
+</div>
+<hr class="styled-hr">
+<div class="clock">
+    <div class="player">
+        <h2>Player 1</h2>
+        <p id="player1_time">{{ game.player1_time }}</p>
+    </div>
+    <div class="switch">
+        <button id="switch_button">Switch</button>
+    </div>
+    <div class="player">
+        <h2>Player 2</h2>
+        <p id="player2_time">{{ game.player2_time }}</p>
+    </div>
+</div>
+
+<div id="winner_message"></div>
+
+
+<script>
+    let interval;
+
+    // Update clock every second
+    function startClock() {
+        interval = setInterval(async () => {
+            const response = await fetch('/update_time', { method: 'POST' });
+            const data = await response.json();
+            document.getElementById('player1_time').innerText = data.player1_time;
+            document.getElementById('player2_time').innerText = data.player2_time;
+
+            // Check for winner
+            const winnerResponse = await fetch('/check_winner');
+            const winnerData = await winnerResponse.json();
+            if (winnerData.winner) {
+                clearInterval(interval);
+                document.getElementById('winner_message').innerText = winnerData.winner + " wins!";
+            }
+        }, 1000);
+    }
+
+    document.getElementById('start_button').onclick = async () => {
+        startClock();
+    };
+
+    document.getElementById('switch_button').onclick = async () => {
+        await fetch('/switch_player', { method: 'POST' });
+    };
+
+    document.getElementById('reset_button').onclick = async () => {
+        clearInterval(interval);
+        const response = await fetch('/reset', { method: 'POST' });
+        const data = await response.json();
+        document.getElementById('player1_time').innerText = data.player1_time;
+        document.getElementById('player2_time').innerText = data.player2_time;
+        document.getElementById('winner_message').innerText = '';
+    };
+
+    document.getElementById('set_limit_form').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        await fetch('/set_limit', { method: 'POST', body: formData });
+    };
+
+    // do something when the page loads:
+    //window.onload = doSomething;
+</script>
+{% endblock %}
