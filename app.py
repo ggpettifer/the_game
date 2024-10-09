@@ -1,80 +1,92 @@
+import eventlet
+eventlet.monkey_patch()  # Patching required for eventlet to work properly with asyncio
+
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from flask_socketio import SocketIO
+from threading import Lock
+import time
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///chess_clock.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+socketio = SocketIO(app, async_mode='eventlet')
+lock = Lock()  # Lock to protect shared resources - avoid race conditions
 
-# Database model
-class Game(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    player1_time = db.Column(db.Integer, default=0)  # Time in seconds
-    player2_time = db.Column(db.Integer, default=0)
-    limit = db.Column(db.Integer, default=60)  # Default limit of 60 seconds
-    current_player = db.Column(db.String(20), default='player1')
+class Game:
+    def __init__(self, is_active, player1_time, player2_time, limit, current_player) -> None:
+        self.is_active = is_active
+        self.player1_time = player1_time
+        self.player2_time = player2_time
+        self.limit = limit
+        self.current_player = current_player
 
-# Create the database
-with app.app_context():
-    db.create_all()
+game = Game(False, 0, 0, 60, 1)
+
+def timer_worker():
+
+    while True:
+        with lock:
+            if not game.is_active:
+                print("game not active")
+                time.sleep(1)
+                continue
+        print("game is active, waiting 1 second")
+        time.sleep(1)  # Non-blocking sleep for 1 second
+
+        with lock:
+            if game.current_player == 1:
+                print("increment player 1")
+                game.player1_time += 1
+            else:
+                print("increment player 2")
+                game.player2_time += 1
+
+            if game.player1_time >= game.limit:
+                socketio.emit('winner_update', {'winner': 'Player 2'})
+                game.is_active = False
+            elif game.player2_time >= game.limit:
+                socketio.emit('winner_update', {'winner': 'Player 1'})
+                game.is_active = False
+            else:
+                # Broadcast the times to all connected users
+                socketio.emit('timer_update', {'player1_time': game.player1_time, 'player1_time': game.player2_time})
 
 @app.route('/')
 def index():
-    game = Game.query.first()
-    if game is None:
-        game = Game()  # Create a new game if none exists
-        db.session.add(game)
-        db.session.commit()
-    return render_template('index.html', game=game)
-
-@app.route('/update_time', methods=['POST'])
-def update_time():
-    game = Game.query.first()
-    if game:
-        if game.current_player == 'player1':
-            game.player1_time += 1
-        else:
-            game.player2_time += 1
-        db.session.commit()
-    return jsonify({'player1_time': game.player1_time, 'player2_time': game.player2_time})
+    with lock:
+        return render_template('index.html', game=game)
 
 @app.route('/switch_player', methods=['POST'])
 def switch_player():
-    game = Game.query.first()
-    if game:
-        game.current_player = 'player2' if game.current_player == 'player1' else 'player1'
-        db.session.commit()
-    return jsonify({'current_player': game.current_player})
+    with lock:
+        if game.is_active:
+            print("switching")
+            game.current_player = 2 if game.current_player == 1 else 1
+    return redirect(url_for('index'))
+
+@app.route('/start_game', methods=['POST'])
+def start():
+    game.is_active = True
+    return redirect(url_for('index'))
 
 @app.route('/reset', methods=['POST'])
 def reset():
-    game = Game.query.first()
-    if game:
+    with lock:
+        print("reseting")
+        game.is_active = False
         game.player1_time = 0
         game.player2_time = 0
-        game.current_player = 'player1'
-        db.session.commit()
-    return jsonify({'player1_time': 0, 'player2_time': 0})
+        game.current_player = 1
+    return redirect(url_for('index'))
 
 @app.route('/set_limit', methods=['POST'])
 def set_limit():
     limit = request.form.get('limit')
-    game = Game.query.first()
-    if game and limit.isdigit():
+    if limit.isdigit():
+        print("setting limit")
         game.limit = int(limit)
-        db.session.commit()
     return redirect(url_for('index'))
 
-@app.route('/check_winner', methods=['GET'])
-def check_winner():
-    game = Game.query.first()
-    if game:
-        if game.player1_time >= game.limit:
-            return jsonify({'winner': 'Player 2'})
-        elif game.player2_time >= game.limit:
-            return jsonify({'winner': 'Player 1'})
-    return jsonify({'winner': None})
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    socketio.start_background_task(target=timer_worker) # seperate thread
+    socketio.run(app, debug=True)
+

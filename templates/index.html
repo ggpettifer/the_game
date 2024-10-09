@@ -31,30 +31,48 @@
 
 <div id="winner_message"></div>
 
+<script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
 
 <script>
     let interval;
 
-    // Update clock every second
-    function startClock() {
-        interval = setInterval(async () => {
-            const response = await fetch('/update_time', { method: 'POST' });
-            const data = await response.json();
-            document.getElementById('player1_time').innerText = data.player1_time;
-            document.getElementById('player2_time').innerText = data.player2_time;
+    document.addEventListener("DOMContentLoaded", () => {
+            const socket = io();
 
-            // Check for winner
-            const winnerResponse = await fetch('/check_winner');
-            const winnerData = await winnerResponse.json();
-            if (winnerData.winner) {
-                clearInterval(interval);
-                document.getElementById('winner_message').innerText = winnerData.winner + " wins!";
-            }
-        }, 1000);
-    }
+            // Listen for timer updates from the server
+            socket.on("timer_update", (data) => {
+                document.getElementById("player1_time").innerText = `${data.player1_time} s`;
+                document.getElementById("player2_time").innerText = `${data.player2_time} s`;
+            });
+
+            // Listen for timer updates from the server
+            socket.on("winner_update", (data) => {
+                document.getElementById("winner_message").innerText = `Player ${data.winner} wins!`;
+            });
+
+        });
+
+    // // Update clock every second
+    // function startClock() {
+    //     interval = setInterval(async () => {
+    //         const response = await fetch('/update_time', { method: 'POST' });
+    //         const data = await response.json();
+    //         document.getElementById('player1_time').innerText = data.player1_time;
+    //         document.getElementById('player2_time').innerText = data.player2_time;
+
+    //         // Check for winner
+    //         const winnerResponse = await fetch('/check_winner');
+    //         const winnerData = await winnerResponse.json();
+    //         if (winnerData.winner) {
+    //             clearInterval(interval);
+    //             document.getElementById('winner_message').innerText = winnerData.winner + " wins!";
+    //         }
+    //     }, 1000);
+    // }
 
     document.getElementById('start_button').onclick = async () => {
-        startClock();
+        //startClock();
+        await fetch('/start_game', { method: 'POST' });
     };
 
     document.getElementById('switch_button').onclick = async () => {
