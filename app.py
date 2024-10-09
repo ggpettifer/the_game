@@ -24,13 +24,14 @@ game = Game(False, 0, 0, 60, 1)
 def timer_worker():
 
     while True:
+        print("game.is_active: ", game.is_active)
         with lock:
             if not game.is_active:
                 print("game not active")
                 time.sleep(1)
                 continue
         print("game is active, waiting 1 second")
-        time.sleep(1)  # Non-blocking sleep for 1 second
+        time.sleep(1)
 
         with lock:
             if game.current_player == 1:
@@ -46,9 +47,10 @@ def timer_worker():
             elif game.player2_time >= game.limit:
                 socketio.emit('winner_update', {'winner': 'Player 1'})
                 game.is_active = False
-            else:
-                # Broadcast the times to all connected users
-                socketio.emit('timer_update', {'player1_time': game.player1_time, 'player1_time': game.player2_time})
+
+            # Broadcast the times to all connected users
+            print(f"player1_time: {game.player1_time} player2_time: {game.player2_time}")
+            socketio.emit('timer_update', {'player1_time': game.player1_time, 'player2_time': game.player2_time})
 
 @app.route('/')
 def index():
@@ -76,6 +78,8 @@ def reset():
         game.player1_time = 0
         game.player2_time = 0
         game.current_player = 1
+        socketio.emit('winner_update', {'winner': ''})
+        socketio.emit('timer_update', {'player1_time': game.player1_time, 'player2_time': game.player2_time})
     return redirect(url_for('index'))
 
 @app.route('/set_limit', methods=['POST'])
