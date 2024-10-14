@@ -5,41 +5,39 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
 from threading import Lock
-import time
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode='eventlet')
-lock = Lock()  # Lock to protect shared resources - avoid race conditions
 
 class Game:
-    def __init__(self, is_active, player1_time, player2_time, limit, current_player) -> None:
-        self.is_active = is_active
-        self.player1_time = player1_time
-        self.player2_time = player2_time
-        self.limit = limit
-        self.current_player = current_player
+    def __init__(self) -> None:
+        self.is_active = False
+        self.player1_time = 0
+        self.player2_time = 0
+        self.limit = 60
+        self.current_player = 1
 
-game = Game(False, 0, 0, 60, 1)
+    def increment_current_player_time(self):
+        if self.current_player == 1:
+            self.player1_time += 1
+        else:
+            self.player2_time += 1
+
+    def switch(self):
+        if self.is_active:
+            self.current_player = 2 if self.current_player == 1 else 1
 
 def timer_worker():
 
     while True:
-        print("game.is_active: ", game.is_active)
-        with lock:
-            if not game.is_active:
-                print("game not active")
-                time.sleep(1)
-                continue
-        print("game is active, waiting 1 second")
-        time.sleep(1)
+
+        eventlet.sleep(1) # this serves as both a timer interval (if game is active) and a delay until checking if the game is active (if the game is not active)
 
         with lock:
-            if game.current_player == 1:
-                print("increment player 1")
-                game.player1_time += 1
-            else:
-                print("increment player 2")
-                game.player2_time += 1
+            if not game.is_active:
+                continue
+            
+            game.increment_current_player_time()
 
             if game.player1_time >= game.limit:
                 socketio.emit('winner_update', {'winner': 'Player 2'})
@@ -49,8 +47,8 @@ def timer_worker():
                 game.is_active = False
 
             # Broadcast the times to all connected users
-            print(f"player1_time: {game.player1_time} player2_time: {game.player2_time}")
             socketio.emit('timer_update', {'player1_time': game.player1_time, 'player2_time': game.player2_time})
+
 
 @app.route('/')
 def index():
@@ -60,20 +58,18 @@ def index():
 @app.route('/switch_player', methods=['POST'])
 def switch_player():
     with lock:
-        if game.is_active:
-            print("switching")
-            game.current_player = 2 if game.current_player == 1 else 1
+        game.switch()
     return redirect(url_for('index'))
 
 @app.route('/start_game', methods=['POST'])
 def start():
-    game.is_active = True
+    with lock:
+        game.is_active = True
     return redirect(url_for('index'))
 
 @app.route('/reset', methods=['POST'])
 def reset():
     with lock:
-        print("reseting")
         game.is_active = False
         game.player1_time = 0
         game.player2_time = 0
@@ -86,11 +82,12 @@ def reset():
 def set_limit():
     limit = request.form.get('limit')
     if limit.isdigit():
-        print("setting limit")
-        game.limit = int(limit)
+        with lock:
+            game.limit = int(limit)
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
+    game = Game()
+    lock = Lock()  # Lock to avoid race conditions
     socketio.start_background_task(target=timer_worker) # seperate thread
     socketio.run(app, debug=True)
-
