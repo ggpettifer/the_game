@@ -34,6 +34,17 @@ body {
     border: 2px solid #007bff;
     border-radius: 10px;
     width: 30%;
+    background-color: #eaeaea;
+}
+
+input[type="number"] {
+    padding: 10px;
+    margin: 5px 0;  /* Maintain vertical margin */
+    border: none;  /* Remove border */
+    border-radius: 5px 0 0 5px;  /* Round left corners */
+    background-color: #ddeaff;  /* Light background color */
+    width: 130px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);  /* Add subtle shadow */
 }
 
 button {
@@ -46,17 +57,23 @@ button {
     cursor: pointer;
 }
 
+.limit-button {
+    padding: 10px 20px;
+    margin: 5px 0;  /* Maintain vertical margin */
+    border: none;  /* Remove border */
+    border-radius: 0 5px 5px 0;  /* Round right corners */
+    background-color: #007bff;  /* Button background color */
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);  /* Add subtle shadow */
+    transition: background-color 0.3s;  /* Smooth transition */
+}
+
+
 button:hover {
     background-color: #0056b3;
 }
 
-input[type="number"] {
-    padding: 10px;
-    margin: 5px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    width: 130px;
-}
 
 #winner_message {
     margin-top: 20px;

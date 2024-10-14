@@ -5,7 +5,7 @@
 <div class="setup">
     <form id="set_limit_form">
         <input type="number" name="limit" placeholder="Set Limit (seconds)" required>
-        <button type="submit">Set Limit</button>
+        <button type="submit" class="limit-button">Set Limit</button>
     </form>
     <div>
         <button id="start_button">Start</button>
@@ -16,14 +16,14 @@
 </div>
 <hr class="styled-hr">
 <div class="clock">
-    <div class="player">
+    <div class="player" id="player1_box">
         <h2>Player 1</h2>
         <p id="player1_time">{{ game.player1_time }}</p>
     </div>
     <div class="switch">
         <button id="switch_button">Switch</button>
     </div>
-    <div class="player">
+    <div class="player" id="player2_box">
         <h2>Player 2</h2>
         <p id="player2_time">{{ game.player2_time }}</p>
     </div>
@@ -42,6 +42,19 @@
             socket.on("timer_update", (data) => {
                 document.getElementById("player1_time").innerText = `${data.player1_time} s`;
                 document.getElementById("player2_time").innerText = `${data.player2_time} s`;
+
+                // conditionally render player 1 or player 2's box's background color green
+                if (data.current_player === 0) { // reset to gray
+                    document.getElementById("player1_box").style.backgroundColor = "#eaeaea";
+                    document.getElementById("player2_box").style.backgroundColor = "#eaeaea";
+                } else if (data.current_player === 1) {
+                    document.getElementById("player1_box").style.backgroundColor = "#b2f0b2";
+                    document.getElementById("player2_box").style.backgroundColor = "#eaeaea";
+                } else if (data.current_player === 2) {
+                    document.getElementById("player2_box").style.backgroundColor = "#b2f0b2";
+                    document.getElementById("player1_box").style.backgroundColor = "#eaeaea";
+                }
+                
             });
 
             // Listen for timer updates from the server
