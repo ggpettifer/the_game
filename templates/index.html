@@ -2,11 +2,17 @@
 
 {% block content %}
 <h1>The Game</h1>
+<div class="info">
+    The game is simple. The player whose time reaches the limit first loses. The other player wins. The idea is that when you remember the game you visit this application and switch the timer.
+</div>
 <div class="setup">
     <form id="set_limit_form">
         <input type="number" name="limit" placeholder="Set Limit (seconds)" required>
         <button type="submit" class="limit-button">Set Limit</button>
     </form>
+    <div id="limit" class="current-limit">
+        <span id="limit_value">{{ game.limit }}</span> s
+    </div>
     <div>
         <button id="start_button">Start</button>
     </div>
@@ -83,6 +89,8 @@
 
     document.getElementById('set_limit_form').onsubmit = async (e) => {
         e.preventDefault();
+        const limitValue = document.querySelector('input[name="limit"]').value;
+        document.getElementById("limit_value").innerText = limitValue;
         const formData = new FormData(e.target);
         await fetch('/set_limit', { method: 'POST', body: formData });
     };
