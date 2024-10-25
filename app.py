@@ -1,11 +1,10 @@
-import os
-
 import eventlet
 eventlet.monkey_patch()  # Patching required for eventlet to work properly with asyncio
 
 from flask import Flask, render_template, request, redirect, url_for
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
+import os
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode='eventlet')
