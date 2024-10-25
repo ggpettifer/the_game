@@ -1,3 +1,5 @@
+import os
+
 import eventlet
 eventlet.monkey_patch()  # Patching required for eventlet to work properly with asyncio
 
@@ -8,13 +10,16 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode='eventlet')
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///the_game.db'
+# postgresql://the_game_db_user:InuhOv6YBd23etlSHq6QD3SupxIWLZEv@dpg-csdr6olsvqrc7393v970-a.frankfurt-postgres.render.com/the_game_db
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///the_game.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 class Game(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    is_active = db.Column(db.Integer, default=False)
+    is_active = db.Column(db.Boolean, default=False)
     player1_time = db.Column(db.Integer, default=0)
     player2_time = db.Column(db.Integer, default=0)
     limit = db.Column(db.Integer, default=60)
